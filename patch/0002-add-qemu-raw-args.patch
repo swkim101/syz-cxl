@@ -1,0 +1,35 @@
+From 520757386597b989920db86d8c40cb4829c39a5f Mon Sep 17 00:00:00 2001
+From: Sungwoo Kim <iam@sung-woo.kim>
+Date: Mon, 23 Mar 2026 23:01:54 -0400
+Subject: [PATCH 2/2] add qemu raw args
+
+---
+ vm/qemu/qemu.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/vm/qemu/qemu.go b/vm/qemu/qemu.go
+index 11e44eaa546a..1e5e4e40886d 100644
+--- a/vm/qemu/qemu.go
++++ b/vm/qemu/qemu.go
+@@ -51,6 +51,7 @@ type Config struct {
+ 	// "{{TCP_PORT}}" is replaced with a random free TCP port
+ 	// "{{FN%8}}" is replaced with PCI BDF (Function#%8) and PCI BDF Dev# += index/8
+ 	QemuArgs string `json:"qemu_args"`
++	RawArgs  string `json:"raw_args"`
+ 	// Location of the kernel for injected boot (e.g. arch/x86/boot/bzImage, optional).
+ 	// This is passed to QEMU as the -kernel option.
+ 	Kernel string `json:"kernel"`
+@@ -592,6 +593,10 @@ func (inst *instance) buildQemuArgs() ([]string, error) {
+ 		}
+ 		args = append(args, snapshotArgs...)
+ 	}
++	if inst.cfg.RawArgs != "" {
++		rawArgs := splitArgs(inst.cfg.RawArgs, templateDir, inst.index)
++		args = append(args, rawArgs...)
++	}
+ 	return args, nil
+ }
+ 
+-- 
+2.47.3
+

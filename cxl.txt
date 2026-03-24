@@ -1,0 +1,212 @@
+# CXL subsystem syzlang description for syzkaller fuzzing
+# Covers /sys/bus/cxl/ sysfs interface and /sys/class/nd/ (ndctl) interface
+
+include <uapi/linux/fcntl.h>
+
+# ============================================================
+# Resources
+# ============================================================
+
+resource fd_cxl_flush[fd]
+resource fd_cxl_devices_dir[fd]
+resource fd_cxl_mem_dir[fd]
+resource fd_cxl_mem_attr[fd]
+resource fd_cxl_root_dir[fd]
+resource fd_cxl_root_attr[fd]
+resource fd_cxl_port_dir[fd]
+resource fd_cxl_port_attr[fd]
+resource fd_cxl_endpoint_dir[fd]
+resource fd_cxl_endpoint_attr[fd]
+resource fd_cxl_decoder_attr_r[fd]
+resource fd_cxl_decoder_attr_w[fd]
+resource fd_cxl_region_attr_r[fd]
+resource fd_cxl_region_attr_w[fd]
+resource fd_cxl_create_region[fd]
+resource fd_cxl_delete_region[fd]
+resource fd_cxl_ep_decoder_attr_r[fd]
+resource fd_cxl_ep_decoder_attr_w[fd]
+resource fd_ndctl_attr[fd]
+resource fd_ndctl_region_attr[fd]
+resource fd_ndctl_region_deep_flush[fd]
+
+# ============================================================
+# CXL Bus: Flush
+# ============================================================
+
+openat$cxl_flush(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/flush"]], flags const[O_WRONLY], mode const[0]) fd_cxl_flush
+write$cxl_flush(fd fd_cxl_flush, buf ptr[in, string["1\n"]], count len[buf])
+
+# ============================================================
+# CXL Bus: Devices directory
+# ============================================================
+
+openat$cxl_devices_dir(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices"]], flags flags[cxl_dir_open_flags], mode const[0]) fd_cxl_devices_dir
+
+cxl_dir_open_flags = O_RDONLY, O_NONBLOCK, O_CLOEXEC, O_DIRECTORY
+
+# ============================================================
+# CXL Memory Device (memN) — read attributes
+# ============================================================
+
+cxl_mem_attr_files = "/sys/bus/cxl/devices/mem0/pmem/size", "/sys/bus/cxl/devices/mem0/ram/size", "/sys/bus/cxl/devices/mem0/pmem/qos_class", "/sys/bus/cxl/devices/mem0/ram/qos_class", "/sys/bus/cxl/devices/mem0/payload_max", "/sys/bus/cxl/devices/mem0/label_storage_size", "/sys/bus/cxl/devices/mem0/serial", "/sys/bus/cxl/devices/mem0/numa_node", "/sys/bus/cxl/devices/mem0/firmware_version"
+
+openat$cxl_mem_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_mem_attr_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_mem_attr
+read$cxl_mem_attr(fd fd_cxl_mem_attr, buf buffer[out], count len[buf])
+
+openat$cxl_mem_dir(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/mem0"]], flags flags[cxl_dir_open_flags], mode const[0]) fd_cxl_mem_dir
+
+# ============================================================
+# CXL Root (rootN) — read attributes
+# ============================================================
+
+cxl_root_attr_files = "/sys/bus/cxl/devices/root0/modalias", "/sys/bus/cxl/devices/root0/decoders_committed"
+
+openat$cxl_root_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_root_attr_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_root_attr
+read$cxl_root_attr(fd fd_cxl_root_attr, buf buffer[out], count len[buf])
+
+openat$cxl_root_dir(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0"]], flags flags[cxl_dir_open_flags], mode const[0]) fd_cxl_root_dir
+
+# ============================================================
+# CXL Port (portN) — read attributes
+# ============================================================
+
+cxl_port_attr_files = "/sys/bus/cxl/devices/root0/port1/modalias", "/sys/bus/cxl/devices/root0/port1/decoders_committed"
+
+openat$cxl_port_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_port_attr_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_port_attr
+read$cxl_port_attr(fd fd_cxl_port_attr, buf buffer[out], count len[buf])
+
+openat$cxl_port_dir(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0/port1"]], flags flags[cxl_dir_open_flags], mode const[0]) fd_cxl_port_dir
+
+# ============================================================
+# CXL Endpoint (endpointN) — read attributes
+# ============================================================
+
+cxl_endpoint_attr_files = "/sys/bus/cxl/devices/root0/port1/endpoint2/modalias", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoders_committed"
+
+openat$cxl_endpoint_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_endpoint_attr_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_endpoint_attr
+read$cxl_endpoint_attr(fd fd_cxl_endpoint_attr, buf buffer[out], count len[buf])
+
+openat$cxl_endpoint_dir(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0/port1/endpoint2"]], flags flags[cxl_dir_open_flags], mode const[0]) fd_cxl_endpoint_dir
+
+# ============================================================
+# CXL Root Decoder (decoderX.Y) — read attributes
+# ============================================================
+
+cxl_decoder_read_files = "/sys/bus/cxl/devices/root0/decoder0.0/start", "/sys/bus/cxl/devices/root0/decoder0.0/size", "/sys/bus/cxl/devices/root0/decoder0.0/mode", "/sys/bus/cxl/devices/root0/decoder0.0/interleave_granularity", "/sys/bus/cxl/devices/root0/decoder0.0/interleave_ways", "/sys/bus/cxl/devices/root0/decoder0.0/qos_class", "/sys/bus/cxl/devices/root0/decoder0.0/cap_type2", "/sys/bus/cxl/devices/root0/decoder0.0/cap_type3", "/sys/bus/cxl/devices/root0/decoder0.0/cap_ram", "/sys/bus/cxl/devices/root0/decoder0.0/cap_pmem", "/sys/bus/cxl/devices/root0/decoder0.0/locked", "/sys/bus/cxl/devices/root0/decoder0.0/target_list"
+
+openat$cxl_decoder_attr_r(fd const[AT_FDCWD], file ptr[in, string[cxl_decoder_read_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_decoder_attr_r
+read$cxl_decoder_attr(fd fd_cxl_decoder_attr_r, buf buffer[out], count len[buf])
+
+# CXL Switch Decoder (decoderX.Y under portN) — read attributes
+cxl_switch_decoder_read_files = "/sys/bus/cxl/devices/root0/port1/decoder1.0/start", "/sys/bus/cxl/devices/root0/port1/decoder1.0/size", "/sys/bus/cxl/devices/root0/port1/decoder1.0/mode", "/sys/bus/cxl/devices/root0/port1/decoder1.0/interleave_granularity", "/sys/bus/cxl/devices/root0/port1/decoder1.0/interleave_ways", "/sys/bus/cxl/devices/root0/port1/decoder1.0/qos_class", "/sys/bus/cxl/devices/root0/port1/decoder1.0/locked", "/sys/bus/cxl/devices/root0/port1/decoder1.0/target_type", "/sys/bus/cxl/devices/root0/port1/decoder1.0/target_list"
+
+openat$cxl_switch_decoder_attr_r(fd const[AT_FDCWD], file ptr[in, string[cxl_switch_decoder_read_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_decoder_attr_r
+read$cxl_switch_decoder_attr(fd fd_cxl_decoder_attr_r, buf buffer[out], count len[buf])
+
+# ============================================================
+# CXL Region — create / delete
+# ============================================================
+
+openat$cxl_create_pmem_region_r(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0/decoder0.0/create_pmem_region"]], flags const[O_RDONLY], mode const[0]) fd_cxl_create_region
+read$cxl_create_region(fd fd_cxl_create_region, buf buffer[out], count len[buf])
+
+openat$cxl_create_pmem_region_w(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0/decoder0.0/create_pmem_region"]], flags const[O_WRONLY], mode const[0]) fd_cxl_create_region
+write$cxl_create_pmem_region(fd fd_cxl_create_region, buf ptr[in, string[cxl_region_names]], count len[buf])
+
+openat$cxl_delete_region(fd const[AT_FDCWD], file ptr[in, string["/sys/bus/cxl/devices/root0/decoder0.0/delete_region"]], flags const[O_WRONLY], mode const[0]) fd_cxl_delete_region
+write$cxl_delete_region(fd fd_cxl_delete_region, buf ptr[in, string[cxl_region_names]], count len[buf])
+
+cxl_region_names = "region0", "region1", "region2", "region3"
+
+# ============================================================
+# CXL Region — read attributes
+# ============================================================
+
+cxl_region0_read_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/size", "/sys/bus/cxl/devices/root0/decoder0.0/region0/resource", "/sys/bus/cxl/devices/root0/decoder0.0/region0/uuid", "/sys/bus/cxl/devices/root0/decoder0.0/region0/interleave_granularity", "/sys/bus/cxl/devices/root0/decoder0.0/region0/interleave_ways", "/sys/bus/cxl/devices/root0/decoder0.0/region0/commit", "/sys/bus/cxl/devices/root0/decoder0.0/region0/mode", "/sys/bus/cxl/devices/root0/decoder0.0/region0/modalias"
+cxl_region1_read_files = "/sys/bus/cxl/devices/root0/decoder0.0/region1/size", "/sys/bus/cxl/devices/root0/decoder0.0/region1/resource", "/sys/bus/cxl/devices/root0/decoder0.0/region1/uuid", "/sys/bus/cxl/devices/root0/decoder0.0/region1/interleave_granularity", "/sys/bus/cxl/devices/root0/decoder0.0/region1/interleave_ways", "/sys/bus/cxl/devices/root0/decoder0.0/region1/commit", "/sys/bus/cxl/devices/root0/decoder0.0/region1/mode", "/sys/bus/cxl/devices/root0/decoder0.0/region1/modalias"
+
+openat$cxl_region0_attr_r(fd const[AT_FDCWD], file ptr[in, string[cxl_region0_read_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_region_attr_r
+openat$cxl_region1_attr_r(fd const[AT_FDCWD], file ptr[in, string[cxl_region1_read_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_region_attr_r
+read$cxl_region_attr(fd fd_cxl_region_attr_r, buf buffer[out], count len[buf])
+
+# ============================================================
+# CXL Region — write attributes
+# ============================================================
+
+openat$cxl_region_interleave_granularity_w(fd const[AT_FDCWD], file ptr[in, string[cxl_region_interleave_granularity_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_region_attr_w
+write$cxl_region_interleave_granularity(fd fd_cxl_region_attr_w, buf ptr[in, string[cxl_interleave_granularity_vals]], count len[buf])
+
+cxl_region_interleave_granularity_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/interleave_granularity", "/sys/bus/cxl/devices/root0/decoder0.0/region1/interleave_granularity"
+cxl_interleave_granularity_vals = "256\n", "512\n", "1024\n", "2048\n", "4096\n", "8192\n", "16384\n"
+
+openat$cxl_region_interleave_ways_w(fd const[AT_FDCWD], file ptr[in, string[cxl_region_interleave_ways_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_region_attr_w
+write$cxl_region_interleave_ways(fd fd_cxl_region_attr_w, buf ptr[in, string[cxl_interleave_ways_vals]], count len[buf])
+
+cxl_region_interleave_ways_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/interleave_ways", "/sys/bus/cxl/devices/root0/decoder0.0/region1/interleave_ways"
+cxl_interleave_ways_vals = "1\n", "2\n", "4\n", "8\n", "16\n"
+
+openat$cxl_region_uuid_w(fd const[AT_FDCWD], file ptr[in, string[cxl_region_uuid_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_region_attr_w
+write$cxl_region_uuid(fd fd_cxl_region_attr_w, buf ptr[in, array[int8, 37]], count const[37])
+
+cxl_region_uuid_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/uuid", "/sys/bus/cxl/devices/root0/decoder0.0/region1/uuid"
+
+openat$cxl_region_size_w(fd const[AT_FDCWD], file ptr[in, string[cxl_region_size_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_region_attr_w
+write$cxl_region_size(fd fd_cxl_region_attr_w, buf ptr[in, string[cxl_region_size_vals]], count len[buf])
+
+cxl_region_size_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/size", "/sys/bus/cxl/devices/root0/decoder0.0/region1/size"
+cxl_region_size_vals = "0x10000000\n", "0x20000000\n", "0x40000000\n", "0x80000000\n"
+
+openat$cxl_region_commit_w(fd const[AT_FDCWD], file ptr[in, string[cxl_region_commit_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_region_attr_w
+write$cxl_region_commit(fd fd_cxl_region_attr_w, buf ptr[in, string[cxl_commit_vals]], count len[buf])
+
+cxl_region_commit_files = "/sys/bus/cxl/devices/root0/decoder0.0/region0/commit", "/sys/bus/cxl/devices/root0/decoder0.0/region1/commit"
+cxl_commit_vals = "1\n", "0\n"
+
+# ============================================================
+# CXL Endpoint Decoder (decoderX.Y under endpointN) — read attributes
+# ============================================================
+
+cxl_ep_decoder_read_files = "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/start", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/interleave_granularity", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/interleave_ways", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/qos_class", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/dpa_resource", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/locked", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/target_type", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/start", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/interleave_granularity", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/interleave_ways", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/qos_class", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/dpa_resource", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/locked", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/target_type", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/start", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/interleave_granularity", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/interleave_ways", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/qos_class", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/dpa_resource", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/locked", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/target_type", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/start", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/interleave_granularity", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/interleave_ways", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/qos_class", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/dpa_resource", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/locked", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/target_type"
+
+openat$cxl_ep_decoder_attr_r(fd const[AT_FDCWD], file ptr[in, string[cxl_ep_decoder_read_files]], flags const[O_RDONLY], mode const[0]) fd_cxl_ep_decoder_attr_r
+read$cxl_ep_decoder_attr(fd fd_cxl_ep_decoder_attr_r, buf buffer[out], count len[buf])
+
+# CXL Endpoint Decoder — write dpa_size
+cxl_ep_decoder_dpa_size_files = "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/dpa_size", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/dpa_size"
+
+openat$cxl_ep_decoder_dpa_size_w(fd const[AT_FDCWD], file ptr[in, string[cxl_ep_decoder_dpa_size_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_ep_decoder_attr_w
+write$cxl_ep_decoder_dpa_size(fd fd_cxl_ep_decoder_attr_w, buf ptr[in, string[cxl_region_size_vals]], count len[buf])
+
+# CXL Endpoint Decoder — write mode
+cxl_ep_decoder_mode_files = "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.0/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.1/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.2/mode", "/sys/bus/cxl/devices/root0/port1/endpoint2/decoder2.3/mode"
+
+openat$cxl_ep_decoder_mode_w(fd const[AT_FDCWD], file ptr[in, string[cxl_ep_decoder_mode_files]], flags const[O_WRONLY], mode const[0]) fd_cxl_ep_decoder_attr_w
+write$cxl_ep_decoder_mode(fd fd_cxl_ep_decoder_attr_w, buf ptr[in, string[cxl_decoder_mode_vals]], count len[buf])
+
+cxl_decoder_mode_vals = "ram\n", "pmem\n"
+
+# ============================================================
+# ndctl — /sys/class/nd/ attributes (from tr2)
+# ============================================================
+
+cxl_ndctl_attr_files = "/sys/class/nd/ndctl0/dev", "/sys/class/nd/ndctl0/device/commands", "/sys/class/nd/ndctl0/device/nfit/revision", "/sys/class/nd/ndctl0/device/nfit/dsm_mask", "/sys/class/nd/ndctl0/device/of_node/compatible", "/sys/class/nd/ndctl0/device/provider", "/sys/class/nd/ndctl0/device/firmware/activate", "/sys/class/nd/ndctl0/device/firmware/capability", "/sys/class/nd/ndctl0/device/wait_probe"
+
+openat$cxl_ndctl_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_ndctl_attr_files]], flags const[O_RDONLY], mode const[0]) fd_ndctl_attr
+read$cxl_ndctl_attr(fd fd_ndctl_attr, buf buffer[out], count len[buf])
+
+# ndctl region attributes
+cxl_ndctl_region_attr_files = "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/size", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/mappings", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/read_only", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/modalias", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/numa_node", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/target_node", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/align", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/nstype", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/set_cookie", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/persistence_domain", "/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/max_available_extent"
+
+openat$cxl_ndctl_region_attr(fd const[AT_FDCWD], file ptr[in, string[cxl_ndctl_region_attr_files]], flags const[O_RDONLY], mode const[0]) fd_ndctl_region_attr
+read$cxl_ndctl_region_attr(fd fd_ndctl_region_attr, buf buffer[out], count len[buf])
+
+# ndctl region deep_flush (read-write)
+openat$cxl_ndctl_deep_flush(fd const[AT_FDCWD], file ptr[in, string["/sys/devices/platform/ACPI0017:00/root0/nvdimm-bridge0/ndbus0/region0/deep_flush"]], flags const[O_RDWR], mode const[0]) fd_ndctl_region_deep_flush
+write$cxl_ndctl_deep_flush(fd fd_ndctl_region_deep_flush, buf ptr[in, string["1\n"]], count len[buf])
+read$cxl_ndctl_deep_flush(fd fd_ndctl_region_deep_flush, buf buffer[out], count len[buf])
+
+# ============================================================
+# Generic CXL sysfs glob (catch-all for discovery)
+# ============================================================
+
+openat$cxl_sysfs(fd const[AT_FDCWD], file ptr[in, glob["/sys/bus/cxl/**/*"]], flags flags[open_flags], mode flags[open_mode]) fd
